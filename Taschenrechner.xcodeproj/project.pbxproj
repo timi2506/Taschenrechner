@@ -25,6 +25,7 @@
 				"Prompt 4.png",
 				"Prompt 5.png",
 				"Prompt 6.png",
+				"Prompt 7.png",
 			);
 			target = 8D95C6AD2F1CF8FA0029A309 /* Taschenrechner */;
 		};

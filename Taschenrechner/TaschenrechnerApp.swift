@@ -11,6 +11,7 @@ enum CalcButton: Hashable {
     case decimal
     case equal
     case clear
+    case history
 }
 
 enum Operation: String {
@@ -40,14 +41,15 @@ struct CalculatorView: View {
     @State private var history: [String] = []
     @State private var errorMessage: String?
     @State private var isNewInput = true
+    @State private var showHistory = false
 
     let layout: [[CalcButton]] = [
-        [.function(.sin), .function(.cos), .function(.tan), .constant(.pi)],
-        [.leftParen, .rightParen, .decimal, .operation(.divide)],
-        [.number("7"), .number("8"), .number("9"), .operation(.multiply)],
-        [.number("4"), .number("5"), .number("6"), .operation(.subtract)],
-        [.number("1"), .number("2"), .number("3"), .operation(.add)],
-        [.clear, .number("0"), .equal]
+        [.history, .function(.sin), .function(.cos), .function(.tan)],
+        [.constant(.pi), .leftParen, .rightParen, .decimal],
+        [.number("7"), .number("8"), .number("9"), .operation(.divide)],
+        [.number("4"), .number("5"), .number("6"), .operation(.multiply)],
+        [.number("1"), .number("2"), .number("3"), .operation(.subtract)],
+        [.clear, .number("0"), .equal, .operation(.add)]
     ]
 
     var body: some View {
@@ -66,17 +68,6 @@ struct CalculatorView: View {
             .background(.ultraThinMaterial)
             .cornerRadius(16)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(history.reversed(), id: \.self) {
-                        Text($0)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            .frame(height: 80)
-
             ForEach(layout, id: \.self) { row in
                 HStack(spacing: 12) {
                     ForEach(row, id: \.self) { button in
@@ -93,12 +84,18 @@ struct CalculatorView: View {
             }
         }
         .padding()
+        .sheet(isPresented: $showHistory) {
+            HistoryView(history: history)
+        }
     }
 
     func handle(_ button: CalcButton) {
         errorMessage = nil
 
         switch button {
+        case .history:
+            showHistory = true
+
         case .number(let value):
             if isNewInput {
                 display = value
@@ -147,7 +144,6 @@ struct CalculatorView: View {
         case .clear:
             expression = ""
             display = "0"
-            history.removeAll()
             errorMessage = nil
             isNewInput = true
         }
@@ -162,9 +158,6 @@ struct CalculatorView: View {
 
         sanitized = resolveFunctions(in: sanitized)
 
-        let formatter = NumberFormatter()
-        formatter.decimalSeparator = "."
-
         let exp = NSExpression(format: sanitized)
         return exp.expressionValue(with: nil, context: nil) as? Double
     }
@@ -176,17 +169,16 @@ struct CalculatorView: View {
             while let range = result.range(of: "\(fn.rawValue)(") {
                 guard let end = matchingParen(in: result, from: range.upperBound) else { break }
                 let inner = String(result[range.upperBound..<end])
-                if let value = Double(inner) {
-                    let computed: Double
-                    switch fn {
-                    case .sin: computed = sin(value)
-                    case .cos: computed = cos(value)
-                    case .tan: computed = tan(value)
-                    }
-                    result.replaceSubrange(range.lowerBound...end, with: "\(computed)")
-                } else {
-                    return ""
+                guard let value = Double(inner) else { return "" }
+
+                let computed: Double
+                switch fn {
+                case .sin: computed = sin(value)
+                case .cos: computed = cos(value)
+                case .tan: computed = tan(value)
                 }
+
+                result.replaceSubrange(range.lowerBound...end, with: "\(computed)")
             }
         }
         return result
@@ -222,6 +214,20 @@ struct CalculatorView: View {
         case .decimal: return ","
         case .equal: return "="
         case .clear: return "C"
+        case .history: return "≡"
+        }
+    }
+}
+
+struct HistoryView: View {
+    let history: [String]
+
+    var body: some View {
+        NavigationStack {
+            List(history.reversed(), id: \.self) {
+                Text($0)
+            }
+            .navigationTitle("Verlauf")
         }
     }
 }
@@ -244,6 +250,7 @@ struct CalcButtonStyle: ButtonStyle {
         case .function, .constant, .leftParen, .rightParen: return .purple
         case .equal: return .blue
         case .clear: return .red
+        case .history: return .black.opacity(0.7)
         }
     }
 }

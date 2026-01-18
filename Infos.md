@@ -86,3 +86,6 @@ libc++abi: terminating due to uncaught exception of type NSException
 *** Terminating app due to uncaught exception 'NSInvalidArgumentException', reason: 'Unable to parse the format string "FUNCTION(sin:, 03) == 1"'
 terminating due to uncaught exception of type NSException
 CoreSimulator 1051.17.7 - Device: iPhone 17 (3C9DF8DD-313D-47E3-83DF-4B1F0F943DC7) - Runtime: iOS 26.2 (23C54) - DeviceType: iPhone 17
+
+## Prompt 7
+Das hat es nun behoben, füge als nächstes bitte den Verlauf als Popup-Fenster hinzu, anstatt ihn in der Mitte des Bildschirms zu zeigen.
