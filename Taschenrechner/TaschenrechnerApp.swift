@@ -9,6 +9,7 @@ enum CalcButton: Hashable {
     case rightParen
     case equal
     case clear
+    case decimal
 }
 
 enum Operation: String {
@@ -36,15 +37,16 @@ struct CalculatorView: View {
     @State private var display = "0"
     @State private var expression = ""
     @State private var history: [String] = []
+    @State private var errorMessage: String?
     @State private var isNewInput = true
 
     let layout: [[CalcButton]] = [
         [.function(.sin), .function(.cos), .function(.tan), .constant(.pi)],
-        [.leftParen, .rightParen, .clear, .operation(.divide)],
+        [.leftParen, .rightParen, .decimal, .operation(.divide)],
         [.number("7"), .number("8"), .number("9"), .operation(.multiply)],
         [.number("4"), .number("5"), .number("6"), .operation(.subtract)],
         [.number("1"), .number("2"), .number("3"), .operation(.add)],
-        [.number("0"), .equal]
+        [.clear, .number("0"), .equal]
     ]
 
     var body: some View {
@@ -53,8 +55,9 @@ struct CalculatorView: View {
                 Text(expression)
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text(display)
+                Text(errorMessage ?? display)
                     .font(.system(size: 44, weight: .medium))
+                    .foregroundColor(errorMessage == nil ? .primary : .red)
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
             .padding()
@@ -91,6 +94,8 @@ struct CalculatorView: View {
     }
 
     func handle(_ button: CalcButton) {
+        errorMessage = nil
+
         switch button {
         case .number(let value):
             if isNewInput {
@@ -101,12 +106,20 @@ struct CalculatorView: View {
             }
             expression += value
 
+        case .decimal:
+            if !display.contains(",") {
+                display += ","
+                expression += ","
+                isNewInput = false
+            }
+
         case .operation(let op):
             expression += " \(op.rawValue) "
             isNewInput = true
 
         case .function(let fn):
             expression += "\(fn.rawValue)("
+            isNewInput = true
 
         case .leftParen:
             expression += "("
@@ -118,40 +131,56 @@ struct CalculatorView: View {
             if constant == .pi {
                 expression += "π"
                 display = format(.pi)
+                isNewInput = true
             }
 
         case .equal:
-            let sanitized = expression
-                .replacingOccurrences(of: "×", with: "*")
-                .replacingOccurrences(of: "÷", with: "/")
-                .replacingOccurrences(of: "π", with: "\(Double.pi)")
-                .replacingOccurrences(of: "sin", with: "sin")
-                .replacingOccurrences(of: "cos", with: "cos")
-                .replacingOccurrences(of: "tan", with: "tan")
+            let prepared = prepareExpression(expression)
+            guard let prepared else {
+                errorMessage = "Ungültiger Ausdruck"
+                return
+            }
 
-            if let result = evaluate(sanitized) {
+            if let result = safeEvaluate(prepared) {
                 history.append("\(expression) = \(format(result))")
                 display = format(result)
                 expression = format(result)
                 isNewInput = true
+            } else {
+                errorMessage = "Mathematischer Fehler"
             }
 
         case .clear:
             display = "0"
             expression = ""
+            history.removeAll()
+            errorMessage = nil
             isNewInput = true
         }
     }
 
-    func evaluate(_ expr: String) -> Double? {
-        let expression = NSExpression(format: expr)
-        return expression.expressionValue(with: nil, context: nil) as? Double
+    func prepareExpression(_ expr: String) -> String? {
+        expr
+            .replacingOccurrences(of: "×", with: "*")
+            .replacingOccurrences(of: "÷", with: "/")
+            .replacingOccurrences(of: ",", with: ".")
+            .replacingOccurrences(of: "π", with: "\(Double.pi)")
+            .replacingOccurrences(of: "sin(", with: "FUNCTION(sin:, ")
+            .replacingOccurrences(of: "cos(", with: "FUNCTION(cos:, ")
+            .replacingOccurrences(of: "tan(", with: "FUNCTION(tan:, ")
+    }
+
+    func safeEvaluate(_ expr: String) -> Double? {
+        let nsExpr = NSExpression(format: expr)
+        let result = nsExpr.expressionValue(with: nil, context: nil)
+        return result as? Double
     }
 
     func format(_ value: Double) -> String {
-        value.truncatingRemainder(dividingBy: 1) == 0
-        ? String(Int(value))
-        : String(value)
+        let formatted = value.truncatingRemainder(dividingBy: 1) == 0
+            ? String(Int(value))
+            : String(value)
+        return formatted.replacingOccurrences(of: ".", with: ",")
     }
 
     func title(for button: CalcButton) -> String {
@@ -162,6 +191,7 @@ struct CalculatorView: View {
         case .constant(let c): return c.rawValue
         case .leftParen: return "("
         case .rightParen: return ")"
+        case .decimal: return ","
         case .equal: return "="
         case .clear: return "C"
         }
@@ -181,7 +211,7 @@ struct CalcButtonStyle: ButtonStyle {
 
     var color: Color {
         switch button {
-        case .number: return .gray.opacity(0.7)
+        case .number, .decimal: return .gray.opacity(0.7)
         case .operation: return .orange
         case .function, .constant, .leftParen, .rightParen: return .purple
         case .equal: return .blue
