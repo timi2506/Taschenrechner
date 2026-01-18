@@ -1,62 +1,88 @@
 import SwiftUI
 
-enum CalcButton: String, CaseIterable {
-    case zero = "0", one = "1", two = "2", three = "3", four = "4"
-    case five = "5", six = "6", seven = "7", eight = "8", nine = "9"
-    case add = "+", subtract = "-", multiply = "×", divide = "÷"
-    case equal = "=", clear = "C"
+enum CalcButton: Hashable {
+    case number(String)
+    case operation(Operation)
+    case function(Function)
+    case constant(Constant)
+    case leftParen
+    case rightParen
+    case equal
+    case clear
+}
 
-    var type: ButtonType {
-        switch self {
-        case .add, .subtract, .multiply, .divide:
-            return .operation
-        case .equal:
-            return .equal
-        case .clear:
-            return .clear
-        default:
-            return .number
+enum Operation: String {
+    case add = "+", subtract = "-", multiply = "×", divide = "÷"
+}
+
+enum Function: String {
+    case sin, cos, tan
+}
+
+enum Constant: String {
+    case pi = "π"
+}
+
+@main
+struct CalculatorApp: App {
+    var body: some Scene {
+        WindowGroup {
+            CalculatorView()
         }
     }
 }
 
-enum ButtonType {
-    case number, operation, equal, clear
-}
-
 struct CalculatorView: View {
     @State private var display = "0"
-    @State private var currentValue: Double = 0
-    @State private var pendingOperation: CalcButton? = nil
+    @State private var expression = ""
+    @State private var history: [String] = []
     @State private var isNewInput = true
 
     let layout: [[CalcButton]] = [
-        [.seven, .eight, .nine, .divide],
-        [.four, .five, .six, .multiply],
-        [.one, .two, .three, .subtract],
-        [.clear, .zero, .equal, .add]
+        [.function(.sin), .function(.cos), .function(.tan), .constant(.pi)],
+        [.leftParen, .rightParen, .clear, .operation(.divide)],
+        [.number("7"), .number("8"), .number("9"), .operation(.multiply)],
+        [.number("4"), .number("5"), .number("6"), .operation(.subtract)],
+        [.number("1"), .number("2"), .number("3"), .operation(.add)],
+        [.number("0"), .equal]
     ]
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text(display)
-                .font(.system(size: 48, weight: .medium))
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding()
-                .background(.ultraThinMaterial)
-                .cornerRadius(16)
+        VStack(spacing: 12) {
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(expression)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(display)
+                    .font(.system(size: 44, weight: .medium))
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding()
+            .background(.ultraThinMaterial)
+            .cornerRadius(16)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(history.reversed(), id: \.self) { item in
+                        Text(item)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .frame(height: 80)
 
             ForEach(layout, id: \.self) { row in
-                HStack(spacing: 16) {
+                HStack(spacing: 12) {
                     ForEach(row, id: \.self) { button in
                         Button {
                             handle(button)
                         } label: {
-                            Text(button.rawValue)
-                                .font(.title2)
+                            Text(title(for: button))
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .font(.title3)
                         }
-                        .buttonStyle(CalcButtonStyle(type: button.type))
+                        .buttonStyle(CalcButtonStyle(button: button))
                     }
                 }
             }
@@ -65,73 +91,101 @@ struct CalculatorView: View {
     }
 
     func handle(_ button: CalcButton) {
-        switch button.type {
-        case .number:
+        switch button {
+        case .number(let value):
             if isNewInput {
-                display = button.rawValue
+                display = value
                 isNewInput = false
             } else {
-                display += button.rawValue
+                display += value
+            }
+            expression += value
+
+        case .operation(let op):
+            expression += " \(op.rawValue) "
+            isNewInput = true
+
+        case .function(let fn):
+            expression += "\(fn.rawValue)("
+
+        case .leftParen:
+            expression += "("
+
+        case .rightParen:
+            expression += ")"
+
+        case .constant(let constant):
+            if constant == .pi {
+                expression += "π"
+                display = format(.pi)
             }
 
-        case .operation:
-            currentValue = Double(display) ?? 0
-            pendingOperation = button
-            isNewInput = true
-
         case .equal:
-            guard let op = pendingOperation else { return }
-            let secondValue = Double(display) ?? 0
-            let result = calculate(currentValue, secondValue, op)
-            display = String(result)
-            pendingOperation = nil
-            isNewInput = true
+            let sanitized = expression
+                .replacingOccurrences(of: "×", with: "*")
+                .replacingOccurrences(of: "÷", with: "/")
+                .replacingOccurrences(of: "π", with: "\(Double.pi)")
+                .replacingOccurrences(of: "sin", with: "sin")
+                .replacingOccurrences(of: "cos", with: "cos")
+                .replacingOccurrences(of: "tan", with: "tan")
+
+            if let result = evaluate(sanitized) {
+                history.append("\(expression) = \(format(result))")
+                display = format(result)
+                expression = format(result)
+                isNewInput = true
+            }
 
         case .clear:
             display = "0"
-            currentValue = 0
-            pendingOperation = nil
+            expression = ""
             isNewInput = true
         }
     }
 
-    func calculate(_ a: Double, _ b: Double, _ op: CalcButton) -> Double {
-        switch op {
-        case .add: return a + b
-        case .subtract: return a - b
-        case .multiply: return a * b
-        case .divide: return b != 0 ? a / b : 0
-        default: return 0
+    func evaluate(_ expr: String) -> Double? {
+        let expression = NSExpression(format: expr)
+        return expression.expressionValue(with: nil, context: nil) as? Double
+    }
+
+    func format(_ value: Double) -> String {
+        value.truncatingRemainder(dividingBy: 1) == 0
+        ? String(Int(value))
+        : String(value)
+    }
+
+    func title(for button: CalcButton) -> String {
+        switch button {
+        case .number(let v): return v
+        case .operation(let o): return o.rawValue
+        case .function(let f): return f.rawValue
+        case .constant(let c): return c.rawValue
+        case .leftParen: return "("
+        case .rightParen: return ")"
+        case .equal: return "="
+        case .clear: return "C"
         }
     }
 }
 
 struct CalcButtonStyle: ButtonStyle {
-    let type: ButtonType
+    let button: CalcButton
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundColor(.white)
-            .background(background)
+            .background(color)
             .cornerRadius(14)
             .scaleEffect(configuration.isPressed ? 0.95 : 1)
     }
 
-    var background: Color {
-        switch type {
+    var color: Color {
+        switch button {
         case .number: return .gray.opacity(0.7)
         case .operation: return .orange
+        case .function, .constant, .leftParen, .rightParen: return .purple
         case .equal: return .blue
         case .clear: return .red
-        }
-    }
-}
-
-@main
-struct CalculatorApp: App {
-    var body: some Scene {
-        WindowGroup {
-            CalculatorView()
         }
     }
 }
