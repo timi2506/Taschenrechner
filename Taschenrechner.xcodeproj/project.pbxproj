@@ -15,10 +15,29 @@
 		8D95C6BC2F1CFBB00029A309 /* Infos.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Infos.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		8D95C6C32F1CFE0F0029A309 /* Exceptions for "Prompt Screenshots" folder in "Taschenrechner" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Prompt 1.png",
+				"Prompt 2.png",
+			);
+			target = 8D95C6AD2F1CF8FA0029A309 /* Taschenrechner */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		8D95C6B02F1CF8FA0029A309 /* Taschenrechner */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Taschenrechner;
+			sourceTree = "<group>";
+		};
+		8D95C6BF2F1CFDF70029A309 /* Prompt Screenshots */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8D95C6C32F1CFE0F0029A309 /* Exceptions for "Prompt Screenshots" folder in "Taschenrechner" target */,
+			);
+			path = "Prompt Screenshots";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -40,6 +59,7 @@
 				8D95C6B02F1CF8FA0029A309 /* Taschenrechner */,
 				8D95C6AF2F1CF8FA0029A309 /* Products */,
 				8D95C6BC2F1CFBB00029A309 /* Infos.md */,
+				8D95C6BF2F1CFDF70029A309 /* Prompt Screenshots */,
 			);
 			sourceTree = "<group>";
 		};
@@ -68,6 +88,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				8D95C6B02F1CF8FA0029A309 /* Taschenrechner */,
+				8D95C6BF2F1CFDF70029A309 /* Prompt Screenshots */,
 			);
 			name = Taschenrechner;
 			packageProductDependencies = (
