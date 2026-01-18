@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		8D95C6BD2F1CFBB00029A309 /* Infos.md in Resources */ = {isa = PBXBuildFile; fileRef = 8D95C6BC2F1CFBB00029A309 /* Infos.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		8D95C6AE2F1CF8FA0029A309 /* Taschenrechner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Taschenrechner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8D95C6BC2F1CFBB00029A309 /* Infos.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Infos.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -34,6 +39,7 @@
 			children = (
 				8D95C6B02F1CF8FA0029A309 /* Taschenrechner */,
 				8D95C6AF2F1CF8FA0029A309 /* Products */,
+				8D95C6BC2F1CFBB00029A309 /* Infos.md */,
 			);
 			sourceTree = "<group>";
 		};
@@ -109,6 +115,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8D95C6BD2F1CFBB00029A309 /* Infos.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
