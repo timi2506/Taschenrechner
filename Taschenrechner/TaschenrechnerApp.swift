@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 enum CalcButton: Hashable {
     case number(String)
@@ -7,9 +8,9 @@ enum CalcButton: Hashable {
     case constant(Constant)
     case leftParen
     case rightParen
+    case decimal
     case equal
     case clear
-    case decimal
 }
 
 enum Operation: String {
@@ -34,8 +35,8 @@ struct CalculatorApp: App {
 }
 
 struct CalculatorView: View {
-    @State private var display = "0"
     @State private var expression = ""
+    @State private var display = "0"
     @State private var history: [String] = []
     @State private var errorMessage: String?
     @State private var isNewInput = true
@@ -55,6 +56,7 @@ struct CalculatorView: View {
                 Text(expression)
                     .font(.caption)
                     .foregroundColor(.secondary)
+
                 Text(errorMessage ?? display)
                     .font(.system(size: 44, weight: .medium))
                     .foregroundColor(errorMessage == nil ? .primary : .red)
@@ -66,8 +68,8 @@ struct CalculatorView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 4) {
-                    ForEach(history.reversed(), id: \.self) { item in
-                        Text(item)
+                    ForEach(history.reversed(), id: \.self) {
+                        Text($0)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -110,7 +112,6 @@ struct CalculatorView: View {
             if !display.contains(",") {
                 display += ","
                 expression += ","
-                isNewInput = false
             }
 
         case .operation(let op):
@@ -127,60 +128,87 @@ struct CalculatorView: View {
         case .rightParen:
             expression += ")"
 
-        case .constant(let constant):
-            if constant == .pi {
-                expression += "π"
-                display = format(.pi)
-                isNewInput = true
-            }
+        case .constant(.pi):
+            expression += "π"
+            display = format(.pi)
+            isNewInput = true
 
         case .equal:
-            let prepared = prepareExpression(expression)
-            guard let prepared else {
-                errorMessage = "Ungültiger Ausdruck"
+            let original = expression
+            guard let result = evaluateExpression(expression) else {
+                errorMessage = "Mathematischer Fehler"
                 return
             }
-
-            if let result = safeEvaluate(prepared) {
-                history.append("\(expression) = \(format(result))")
-                display = format(result)
-                expression = format(result)
-                isNewInput = true
-            } else {
-                errorMessage = "Mathematischer Fehler"
-            }
+            history.append("\(original) = \(format(result))")
+            display = format(result)
+            expression = format(result)
+            isNewInput = true
 
         case .clear:
-            display = "0"
             expression = ""
+            display = "0"
             history.removeAll()
             errorMessage = nil
             isNewInput = true
         }
     }
 
-    func prepareExpression(_ expr: String) -> String? {
-        expr
+    func evaluateExpression(_ expr: String) -> Double? {
+        var sanitized = expr
+            .replacingOccurrences(of: "π", with: "\(Double.pi)")
+            .replacingOccurrences(of: ",", with: ".")
             .replacingOccurrences(of: "×", with: "*")
             .replacingOccurrences(of: "÷", with: "/")
-            .replacingOccurrences(of: ",", with: ".")
-            .replacingOccurrences(of: "π", with: "\(Double.pi)")
-            .replacingOccurrences(of: "sin(", with: "FUNCTION(sin:, ")
-            .replacingOccurrences(of: "cos(", with: "FUNCTION(cos:, ")
-            .replacingOccurrences(of: "tan(", with: "FUNCTION(tan:, ")
+
+        sanitized = resolveFunctions(in: sanitized)
+
+        let formatter = NumberFormatter()
+        formatter.decimalSeparator = "."
+
+        let exp = NSExpression(format: sanitized)
+        return exp.expressionValue(with: nil, context: nil) as? Double
     }
 
-    func safeEvaluate(_ expr: String) -> Double? {
-        let nsExpr = NSExpression(format: expr)
-        let result = nsExpr.expressionValue(with: nil, context: nil)
-        return result as? Double
+    func resolveFunctions(in expr: String) -> String {
+        var result = expr
+
+        for fn in [Function.sin, .cos, .tan] {
+            while let range = result.range(of: "\(fn.rawValue)(") {
+                guard let end = matchingParen(in: result, from: range.upperBound) else { break }
+                let inner = String(result[range.upperBound..<end])
+                if let value = Double(inner) {
+                    let computed: Double
+                    switch fn {
+                    case .sin: computed = sin(value)
+                    case .cos: computed = cos(value)
+                    case .tan: computed = tan(value)
+                    }
+                    result.replaceSubrange(range.lowerBound...end, with: "\(computed)")
+                } else {
+                    return ""
+                }
+            }
+        }
+        return result
+    }
+
+    func matchingParen(in text: String, from index: String.Index) -> String.Index? {
+        var depth = 1
+        var i = index
+        while i < text.endIndex {
+            if text[i] == "(" { depth += 1 }
+            if text[i] == ")" { depth -= 1 }
+            if depth == 0 { return i }
+            i = text.index(after: i)
+        }
+        return nil
     }
 
     func format(_ value: Double) -> String {
-        let formatted = value.truncatingRemainder(dividingBy: 1) == 0
+        let str = value.truncatingRemainder(dividingBy: 1) == 0
             ? String(Int(value))
             : String(value)
-        return formatted.replacingOccurrences(of: ".", with: ",")
+        return str.replacingOccurrences(of: ".", with: ",")
     }
 
     func title(for button: CalcButton) -> String {
