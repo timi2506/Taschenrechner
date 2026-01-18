@@ -112,6 +112,13 @@ struct CalculatorView: View {
             }
 
         case .operation(let op):
+            guard !expression.isEmpty,
+                  !expression.hasSuffix("+"),
+                  !expression.hasSuffix("-"),
+                  !expression.hasSuffix("×"),
+                  !expression.hasSuffix("÷"),
+                  !expression.hasSuffix("(")
+            else { return }
             expression += " \(op.rawValue) "
             isNewInput = true
 
@@ -123,6 +130,7 @@ struct CalculatorView: View {
             expression += "("
 
         case .rightParen:
+            guard balancedParentheses(afterAppending: ")") else { return }
             expression += ")"
 
         case .constant(.pi):
@@ -131,14 +139,20 @@ struct CalculatorView: View {
             isNewInput = true
 
         case .equal:
-            let original = expression
-            guard let result = evaluateExpression(expression) else {
+            let trimmed = trimInvalidEnd(expression)
+            guard !trimmed.isEmpty else {
+                errorMessage = "Ungültiger Ausdruck"
+                return
+            }
+
+            guard let result = evaluateExpression(trimmed) else {
                 errorMessage = "Mathematischer Fehler"
                 return
             }
-            history.append("\(original) = \(format(result))")
-            display = format(result)
+
+            history.append("\(trimmed) = \(format(result))")
             expression = format(result)
+            display = format(result)
             isNewInput = true
 
         case .clear:
@@ -149,6 +163,26 @@ struct CalculatorView: View {
         }
     }
 
+    func trimInvalidEnd(_ expr: String) -> String {
+        var result = expr.trimmingCharacters(in: .whitespaces)
+        while result.hasSuffix("+")
+            || result.hasSuffix("-")
+            || result.hasSuffix("×")
+            || result.hasSuffix("÷")
+            || result.hasSuffix("(") {
+            result.removeLast()
+            result = result.trimmingCharacters(in: .whitespaces)
+        }
+        return result
+    }
+
+    func balancedParentheses(afterAppending char: String) -> Bool {
+        let test = expression + char
+        let open = test.filter { $0 == "(" }.count
+        let close = test.filter { $0 == ")" }.count
+        return close <= open
+    }
+
     func evaluateExpression(_ expr: String) -> Double? {
         var sanitized = expr
             .replacingOccurrences(of: "π", with: "\(Double.pi)")
@@ -157,9 +191,18 @@ struct CalculatorView: View {
             .replacingOccurrences(of: "÷", with: "/")
 
         sanitized = resolveFunctions(in: sanitized)
+        guard isValidMathExpression(sanitized) else { return nil }
 
-        let exp = NSExpression(format: sanitized)
-        return exp.expressionValue(with: nil, context: nil) as? Double
+        let nsExpr = NSExpression(format: sanitized)
+        return nsExpr.expressionValue(with: nil, context: nil) as? Double
+    }
+
+    func isValidMathExpression(_ expr: String) -> Bool {
+        let invalidPatterns = ["++", "--", "**", "//", "+*", "*/", "/+", "-*", "*+"]
+        for pattern in invalidPatterns {
+            if expr.contains(pattern) { return false }
+        }
+        return true
     }
 
     func resolveFunctions(in expr: String) -> String {
@@ -167,7 +210,7 @@ struct CalculatorView: View {
 
         for fn in [Function.sin, .cos, .tan] {
             while let range = result.range(of: "\(fn.rawValue)(") {
-                guard let end = matchingParen(in: result, from: range.upperBound) else { break }
+                guard let end = matchingParen(in: result, from: range.upperBound) else { return "" }
                 let inner = String(result[range.upperBound..<end])
                 guard let value = Double(inner) else { return "" }
 

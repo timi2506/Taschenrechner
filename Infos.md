@@ -89,3 +89,6 @@ CoreSimulator 1051.17.7 - Device: iPhone 17 (3C9DF8DD-313D-47E3-83DF-4B1F0F943DC
 
 ## Prompt 7
 Das hat es nun behoben, füge als nächstes bitte den Verlauf als Popup-Fenster hinzu, anstatt ihn in der Mitte des Bildschirms zu zeigen.
+
+## Prompt 8
+Das einzige Problem was ich momentan mit dieser Version noch habe ist: Wenn man eine Rechnung eingibt und z.B. "1+1+" eingibt stürzt die App wieder ab.
